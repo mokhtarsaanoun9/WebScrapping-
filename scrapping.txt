@@ -1,0 +1,78 @@
+from tkinter import Tk, Button, filedialog
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
+import time
+import csv
+
+# Déclarer la variable driver en dehors de la fonction openFile
+driver = None
+
+def openFile():
+    global driver
+
+    filepath = filedialog.askopenfilename(
+        initialdir=r"C:\Users\user\OneDrive - ESPRIT\Bureau\ProjectPiBi",
+        title="Open file",
+        filetypes=(("Executable files", "*.exe"), ("All files", "*.*"))
+    )
+    if filepath:
+        print("Chemin du fichier sélectionné:", filepath)
+
+        # Initialiser le webdriver avec le chemin du fichier
+        options = webdriver.ChromeOptions()
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--no-sandbox")
+        driver = webdriver.Chrome(options=options)
+
+        time.sleep(5)  # Pause de 5 secondes
+
+        # Ouvrir le fichier CSV en dehors de la boucle
+        with open('scrappingtrivagofr.csv', mode='w', newline='', encoding='utf-8-sig') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Nom de l\'hôtel', 'Prix', 'Localisation', 'Rating'])
+
+            # Récupérer 10 pages différentes
+            for page_number in range(2, 12):
+                url = f"https://www.trivago.fr/en-US/lm/hotels-tunisia?search=101-2;200-203;dr-20240220-20240221;pa-{page_number}"
+                driver.get(url)
+
+                time.sleep(5)  # Attendre quelques secondes pour que la connexion soit établie
+
+                # Récupérer la source de la page avec BeautifulSoup
+                src = driver.page_source
+                soup = BeautifulSoup(src, 'html.parser')
+
+                nomhotel_elements = soup.find_all(class_="ItemNameSection_itemNameButton__sWjFo")
+                prix_elements = soup.find_all(class_="ClickoutArea_priceWrapper__1EX1i")
+                localisation_elements = soup.find_all(class_="block text-left w-11/12 text-m")
+                rating_elements = soup.find_all(class_="mt-px truncate")
+
+                for nomhotel_element, prix_element, localisation_element, rating_element in zip(nomhotel_elements, prix_elements, localisation_elements, rating_elements):
+                    nomhotel = nomhotel_element.text.strip()
+                    prix = prix_element.text.strip()
+                    localisation = localisation_element.text.strip()
+                    rating = rating_element.text.strip()
+
+                    # Écrire les données dans le fichier CSV
+                    writer.writerow([nomhotel, prix, localisation, rating])
+
+                    print(f"Nom de l'hôtel: {nomhotel}, Prix: {prix}, Localisation: {localisation}, Rating: {rating}")
+
+        # Fermer le webdriver après avoir récupéré toutes les données
+        driver.quit()
+        print("Données sauvegardées avec succès dans scrappingtrivagofr.csv")
+
+# Créer la fenêtre principale
+window = Tk()
+
+# Créer le bouton pour ouvrir le fichier
+button = Button(text="Open", command=openFile)
+button.pack()
+
+# Lancer la boucle principale de la fenêtre
+window.mainloop()
+
+# Vous pouvez maintenant accéder à la variable driver en dehors de la fonction openFile
+if driver:
+    print("Webdriver initialisé avec succès.")
